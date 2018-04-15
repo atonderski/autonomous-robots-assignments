@@ -15,7 +15,7 @@
 
 cmake_minimum_required(VERSION 3.2)
 
-project(opendlv-logic-test-kiwi)
+project(control)
 
 ################################################################################
 # Defining the relevant versions of OpenDLV Standard Message Set and libcluon.
