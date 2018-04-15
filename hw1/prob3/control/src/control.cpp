@@ -19,6 +19,7 @@
 #include "cluon-complete.hpp"
 #include "opendlv-standard-message-set.hpp"
 #include "behavior.hpp"
+#include "cluon-complete-v0.0.65.hpp"
 
 int32_t main(int32_t argc, char **argv) {
     int32_t retCode{0};
@@ -48,14 +49,14 @@ int32_t main(int32_t argc, char **argv) {
                 float leftWheelSpeed;
                 float rightWheelSpeed;
                 if (t < T1) {
-                    leftWheelSpeed = 0.0f
+                    leftWheelSpeed = 0.0f;
                     rightWheelSpeed = static_cast<float>(V0 * t / T1);
                 } else if (t < T2) {
                     leftWheelSpeed = static_cast<float>(V0 * (t - T1) / T2);
                     rightWheelSpeed = static_cast<float>(V0);
                 }
                 opendlv::proxy::WheelSpeedRequest leftWheelSpeedRequest;
-                leftWheelSpeedRequest.wheelSpeed(leftWheelSpeed)
+                leftWheelSpeedRequest.wheelSpeed(leftWheelSpeed);
                 opendlv::proxy::WheelSpeedRequest rightWheelSpeedRequest;
                 rightWheelSpeedRequest.wheelSpeed(rightWheelSpeed);
 
@@ -69,6 +70,8 @@ int32_t main(int32_t argc, char **argv) {
                 t += DT;
                 return true;
             }};
+            // Wait for 5 seconds before starting the demo
+            std::this_thread::sleep_for(std::chrono::duration<double>(2.0));
             od4.timeTrigger(FREQ, demoAtFrequency);
         } else {
             Behavior behavior;

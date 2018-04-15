@@ -43,7 +43,6 @@ class DifferentialSteeringModel {
   std::mutex m_RightWheelSpeedMutex;
   float m_LeftWheelSpeed;
   float m_RightWheelSpeed;
-  float m_currentYaw;
 };
 
 #endif

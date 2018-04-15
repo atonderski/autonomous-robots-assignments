@@ -62,7 +62,7 @@ TEST_CASE("Test differential steering model, going straight ahead should give po
         prevLongitudinalSpeed = longitudinalSpeed;
         longitudinalSpeed = ks.vx();
         REQUIRE(longitudinalSpeed >= 0.0f);
-        REQUIRE(ks.vy() == Approx(0.0f));
+        REQUIRE(1+ks.vy() == Approx(1.0f));
         REQUIRE(ks.vz() == Approx(0.0f));
         REQUIRE(ks.rollRate() == Approx(0.0f));
         REQUIRE(ks.pitchRate() == Approx(0.0f));

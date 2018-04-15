@@ -41,4 +41,5 @@ FROM pipill/armhf-alpine:edge
 
 WORKDIR /usr/bin
 COPY --from=builder /tmp/build-dest/ /usr/
-CMD ["/usr/bin/kinematics"]
+COPY --from=builder /usr/lib/libstdc++.so.6 /usr/lib/libgcc_s.so.1 /usr/lib/
+ENTRYPOINT ["/usr/bin/kinematics"]

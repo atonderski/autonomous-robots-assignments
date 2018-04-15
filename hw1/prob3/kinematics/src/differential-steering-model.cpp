@@ -24,7 +24,7 @@ DifferentialSteeringModel::DifferentialSteeringModel() noexcept:
         m_LeftWheelSpeedMutex{},
         m_RightWheelSpeedMutex{},
         m_LeftWheelSpeed{0.0f},
-        m_RightWheelSpeed{0.0f} {
+        m_RightWheelSpeed{0.0f}{
 }
 
 void DifferentialSteeringModel::setLeftWheelSpeed(opendlv::proxy::WheelSpeedRequest const &wheelSpeedRequest) noexcept {
@@ -32,13 +32,12 @@ void DifferentialSteeringModel::setLeftWheelSpeed(opendlv::proxy::WheelSpeedRequ
     m_LeftWheelSpeed = wheelSpeedRequest.wheelSpeed();
 }
 
-void
-DifferentialSteeringModel::setRightWheelSpeed(opendlv::proxy::WheelSpeedRequest const &wheelSpeedRequest) noexcept {
+void DifferentialSteeringModel::setRightWheelSpeed(opendlv::proxy::WheelSpeedRequest const &wheelSpeedRequest) noexcept {
     std::lock_guard<std::mutex> lock(m_RightWheelSpeedMutex);
     m_RightWheelSpeed = wheelSpeedRequest.wheelSpeed();
 }
 
-opendlv::sim::KinematicState DifferentialSteeringModel::step(double dt) noexcept {
+opendlv::sim::KinematicState DifferentialSteeringModel::step(double) noexcept {
 
     float r{0.12};
 
@@ -52,15 +51,10 @@ opendlv::sim::KinematicState DifferentialSteeringModel::step(double dt) noexcept
     }
 
     float yawRate = -(leftWheelSpeedCopy - rightWheelSpeedCopy) / (2 * r);
-    m_currentYaw += yawRate * dt;
-
-    float v = (leftWheelSpeedCopy + rightWheelSpeedCopy) * 0.5f;
-    float vx = v * std::cos(m_currentYaw);
-    float vy = v * std::sin(m_currentYaw);
+    float vx = (leftWheelSpeedCopy + rightWheelSpeedCopy) * 0.5f;
 
     opendlv::sim::KinematicState kinematicState;
     kinematicState.vx(vx);
-    kinematicState.vy(vy);
     kinematicState.yawRate(yawRate);
     return kinematicState;
 }
