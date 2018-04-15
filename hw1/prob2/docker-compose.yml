@@ -1,18 +1,12 @@
-version: ’2’
+version: "2"
 
 services:
-    device-kiwi-prugw:
-        image: chalmersrevere/opendlv-device-kiwi-prugw-armhf:v0.0.2 network_mode: "host"
-        command: "/usr/bin/opendlv-device-kiwi-prugw --cid=111"
-    device -ultrasonic -srf08 -front:
-        image: chalmersrevere/opendlv-device-ultrasonic-srf08-armhf:v0.0.2 network_mode: "host"
-        command: "/usr/bin/opendlv-device-ultrasonic-srf08 --cid=111 --freq=10 --id=1"
-    device -ultrasonic -srf08 -rear:
-        image: chalmersrevere/opendlv-device-ultrasonic-srf08-armhf:v0.0.2 network_mode: "host"
-        command: "/usr/bin/opendlv-device-ultrasonic-srf08 --cid=111 --freq=1 --id=2"
-    device-adc-bbblue-left:
-        image: chalmersrevere/opendlv-device-adc-bbblue-armhf:v0.0.3 network_mode: "host"
-        command: "/usr/bin/opendlv-device-adc-bbblue --cid=111 --freq=1 --id=1"
-    device-adc-bbblue-right:
-        image: chalmersrevere/opendlv-device-adc-bbblue-armhf:v0.0.3 network_mode: "host"
-        command: "/usr/bin/opendlv-device-adc-bbblue --cid=111 --freq=1 --id=2"
+    arch:
+        image: archlinux/base
+        command: "echo Hello World!"
+    ubuntu:
+        image: ubuntu:16.04
+        command: "echo Hello World!"
+    alpine:
+        image: alpine:3.7
+        command: "echo Hello World!"
