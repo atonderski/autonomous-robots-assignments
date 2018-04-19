@@ -107,6 +107,8 @@ int32_t main(int32_t argc, char **argv) {
 
                 cluon::data::TimeStamp sampleTime;
                 od4.send(leftWheelSpeedRequest, sampleTime, 0);
+                // Sleep for a little bit since od4 can't seem to handle 2 similar messages at the same time...
+                std::this_thread::sleep_for(std::chrono::duration<double>(0.005));
                 od4.send(rightWheelSpeedRequest, sampleTime, 1);
                 if (VERBOSE) {
                     std::cout << "Ground steering angle is " << leftWheelSpeedRequest.wheelSpeed()

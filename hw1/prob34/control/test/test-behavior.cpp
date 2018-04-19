@@ -24,17 +24,18 @@
 
 #include "behavior.hpp"
 
-TEST_CASE("Test behavior, a short distance to the front should make Kiwi stop.") {
+TEST_CASE("Test behavior, a short distance to the front should make Kiwi reverse slowly.") {
     Behavior b;
 
     opendlv::proxy::DistanceReading dr;
     dr.distance(0.1f);
 
     b.setFrontUltrasonic(dr);
+    dr.distance(1.0f);
+    b.setRearUltrasonic(dr);
     b.step();
 
     auto lws = b.getLeftWheelSpeed();
     auto rws = b.getRightWheelSpeed();
-    REQUIRE(lws.wheelSpeed() == Approx(0.0f));
-    REQUIRE(rws.wheelSpeed() == Approx(0.0f));
+    REQUIRE((lws.wheelSpeed() + rws.wheelSpeed())/2.0 <= Approx(0.0f));
 }

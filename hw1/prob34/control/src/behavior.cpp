@@ -15,6 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <iostream>
+#include <cmath>
 #include "behavior.hpp"
 
 Behavior::Behavior() noexcept:
@@ -29,7 +31,8 @@ Behavior::Behavior() noexcept:
         m_leftIrReadingMutex{},
         m_rightIrReadingMutex{},
         m_leftWheelSpeedRequestMutex{},
-        m_rightWheelSpeedRequestMutex{} {
+        m_rightWheelSpeedRequestMutex{},
+        m_preferedDirection{0.5f} {
 }
 
 opendlv::proxy::WheelSpeedRequest Behavior::getLeftWheelSpeed() noexcept {
@@ -80,25 +83,59 @@ void Behavior::step() noexcept {
         rightDistance = convertIrVoltageToDistance(m_rightIrReading.voltage());
     }
 
-    float speed = 0.2f;
-    float turningAngle = 0.0f;
-    if (frontDistance < 0.3f) {
-        speed = 0.0f;
-    } else {
-        if (rearDistance < 0.3f) {
-            speed = 0.4f;
+    float avoidanceSpeedFactor{0.0f};
+    // Change speed based on proximity in front/back
+    if (frontDistance < 1.f) {
+        avoidanceSpeedFactor -= 0.6f * (1.f - frontDistance);
+    }
+    if (rearDistance < 0.5f) {
+        avoidanceSpeedFactor += 0.6f * (0.5f - rearDistance) / 0.5f;
+    }
+    // add the default speed
+    float speed = avoidanceSpeedFactor + 0.4f;
+
+    float avoidanceTurningFactor{0.f};
+
+    // Avoid obstacles in front and back
+    if (frontDistance < 0.5f || rearDistance < 0.5f) {
+        if (leftDistance < rightDistance) {
+            m_preferedDirection = -fabs(m_preferedDirection);
+            std::cout << "Preferred direction: " << m_preferedDirection << std::endl;
+        } else {
+            m_preferedDirection = fabs(m_preferedDirection);
+            std::cout << "Preferred direction: " << m_preferedDirection << std::endl;
+        }
+        avoidanceTurningFactor = m_preferedDirection;
+    }
+
+    bool oldIsFollowingWall = m_isFollowingWall;
+    // Avoid obstacles on the sides
+    double sideAvoidanceThreshold{0.25f};
+    double sideDetectionThreshold{0.32f};
+    m_isFollowingWall = false;
+    if (leftDistance < sideDetectionThreshold) {
+        std::cout << "Close on the left: " << leftDistance << std::endl;
+        m_isFollowingWall = true;
+        if (leftDistance < sideAvoidanceThreshold) {
+            avoidanceTurningFactor -= 0.4 * (1 - leftDistance / sideAvoidanceThreshold);
+        }
+    }
+    if (rightDistance < sideDetectionThreshold) {
+        std::cout << "Close on the right: " << rightDistance << std::endl;
+        m_isFollowingWall = true;
+        if (rightDistance < sideAvoidanceThreshold) {
+            avoidanceTurningFactor += 0.4f * (1 - rightDistance / sideAvoidanceThreshold);
         }
     }
 
-    if (leftDistance < rightDistance) {
-        if (leftDistance < 0.2f) {
-            turningAngle = 0.2f;
-        }
-    } else {
-        if (rightDistance < 0.2f) {
-            turningAngle = -0.2f;
+    // if we aren't close to a wall, we have a chance to change direction
+    if (!m_isFollowingWall) {
+        if (oldIsFollowingWall || random() % 50 == 0) {
+            m_preferedDirection = -m_preferedDirection;
+            std::cout << "Changed direction to " << m_preferedDirection << std::endl;
         }
     }
+    float turningAngle = avoidanceTurningFactor == 0.0f ? m_preferedDirection : avoidanceTurningFactor;
 
     float r{0.12};
     float leftWheelSpeed = speed - turningAngle * r;
@@ -124,6 +161,6 @@ double Behavior::convertIrVoltageToDistance(float voltage) const noexcept {
     double voltageDividerR2 = 1000.0;
 
     double sensorVoltage = (voltageDividerR1 + voltageDividerR2) / voltageDividerR2 * voltage;
-    double distance = (2.5 - sensorVoltage) / 0.07;
+    double distance = (3.4 - sensorVoltage) / 9.9;
     return distance;
 }
