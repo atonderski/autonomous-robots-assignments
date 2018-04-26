@@ -7,7 +7,7 @@ v0 = 0.5
 
 
 def run_simulation(R):
-    C1 = v0 / (4 * R) * (1 / t1 - 1 / t2)
+    C1 = -v0 / (4 * R) * (1 / t1 - 1 / t2)
     C2 = v0 / 2 * (1 / t1 + 1 / t2)
     t = np.linspace(0, 10, 100)
     # phi = C1 * t ** 2
@@ -22,5 +22,5 @@ plt.plot(x, y)
 plt.xlabel('x')
 plt.ylabel('y')
 plt.title('Trajectory of differentially steered robot')
-plt.show()
 plt.savefig('prob1.eps')
+plt.show()
