@@ -54,6 +54,8 @@ public:
 
 private:
     double convertIrVoltageToDistance(float) const noexcept;
+    void FlipDirection();
+    void ChangeDirection(bool right);
 
 private:
     opendlv::proxy::DistanceReading m_frontUltrasonicReading;
@@ -68,8 +70,11 @@ private:
     std::mutex m_rightIrReadingMutex;
     std::mutex m_leftWheelSpeedRequestMutex;
     std::mutex m_rightWheelSpeedRequestMutex;
+
     float m_preferedDirection;
     bool m_isFollowingWall;
+    float m_turnDampening;
+    std::chrono::system_clock::time_point m_timeOfLastFlip;
 };
 
 #endif

@@ -32,7 +32,10 @@ Behavior::Behavior() noexcept:
         m_rightIrReadingMutex{},
         m_leftWheelSpeedRequestMutex{},
         m_rightWheelSpeedRequestMutex{},
-        m_preferedDirection{0.5f} {
+        m_preferedDirection{0.7f},
+        m_turnDampening{},
+        m_timeOfLastFlip{}
+{
 }
 
 opendlv::proxy::WheelSpeedRequest Behavior::getLeftWheelSpeed() noexcept {
@@ -97,46 +100,52 @@ void Behavior::step() noexcept {
     float avoidanceTurningFactor{0.f};
 
     // Avoid obstacles in front and back
-    if (frontDistance < 0.5f || rearDistance < 0.5f) {
-        if (leftDistance < rightDistance) {
-            m_preferedDirection = -fabs(m_preferedDirection);
-            std::cout << "Preferred direction: " << m_preferedDirection << std::endl;
-        } else {
-            m_preferedDirection = fabs(m_preferedDirection);
-            std::cout << "Preferred direction: " << m_preferedDirection << std::endl;
+    if (frontDistance < 0.9f || rearDistance < 0.5f) {
+        if (frontDistance < 0.5f) {
+            ChangeDirection(leftDistance < rightDistance);
         }
+        m_turnDampening = 1.f;
         avoidanceTurningFactor = m_preferedDirection;
     }
 
     bool oldIsFollowingWall = m_isFollowingWall;
     // Avoid obstacles on the sides
-    double sideAvoidanceThreshold{0.25f};
     double sideDetectionThreshold{0.32f};
+    double sideAvoidanceThreshold{0.25f};
     m_isFollowingWall = false;
     if (leftDistance < sideDetectionThreshold) {
-        std::cout << "Close on the left: " << leftDistance << std::endl;
+//        std::cout << "Close on the left: " << leftDistance << std::endl;
         m_isFollowingWall = true;
         if (leftDistance < sideAvoidanceThreshold) {
-            avoidanceTurningFactor -= 0.4 * (1 - leftDistance / sideAvoidanceThreshold);
+            avoidanceTurningFactor -= 0.3 * (1 - leftDistance / sideAvoidanceThreshold);
         }
     }
     if (rightDistance < sideDetectionThreshold) {
-        std::cout << "Close on the right: " << rightDistance << std::endl;
+//        std::cout << "Close on the right: " << rightDistance << std::endl;
         m_isFollowingWall = true;
         if (rightDistance < sideAvoidanceThreshold) {
-            avoidanceTurningFactor += 0.4f * (1 - rightDistance / sideAvoidanceThreshold);
+            avoidanceTurningFactor += 0.3f * (1 - rightDistance / sideAvoidanceThreshold);
         }
     }
 
-    // if we aren't close to a wall, we have a chance to change direction
+    // if we aren't close to a wall, we have a chance to change direction. The chance is higher if we just stopped following a wall
     if (!m_isFollowingWall) {
-        if (oldIsFollowingWall || random() % 50 == 0) {
-            m_preferedDirection = -m_preferedDirection;
-            std::cout << "Changed direction to " << m_preferedDirection << std::endl;
+        if (oldIsFollowingWall && random() % 4 > 0) {
+            FlipDirection();
+        } else if (random() % 100 == 0) {
+            FlipDirection();
         }
     }
-    float turningAngle = avoidanceTurningFactor == 0.0f ? m_preferedDirection : avoidanceTurningFactor;
-
+    float turningAngle;
+    if (avoidanceTurningFactor == 0.0f) {
+        if (random() % 50 == 0){
+            m_turnDampening *= 0.5f;
+        }
+        turningAngle = m_preferedDirection * m_turnDampening;
+    } else{
+        m_turnDampening = 1;
+        turningAngle = avoidanceTurningFactor;
+    }
     float r{0.12};
     float leftWheelSpeed = speed - turningAngle * r;
     float rightWheelSpeed = speed + turningAngle * r;
@@ -153,6 +162,21 @@ void Behavior::step() noexcept {
         rightWheelSpeedRequest.wheelSpeed(rightWheelSpeed);
         m_rightWheelSpeedRequest = rightWheelSpeedRequest;
     }
+}
+
+void Behavior::FlipDirection() {
+    auto now = std::chrono::system_clock::now();
+    auto timeSinceLastFlip = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_timeOfLastFlip).count();
+    if (timeSinceLastFlip > 1000) {
+        m_preferedDirection = -m_preferedDirection;
+        std::cout << "Flipped direction to " << m_preferedDirection << std::endl;
+        m_timeOfLastFlip = now;
+    }
+}
+
+void Behavior::ChangeDirection(bool right) {
+    m_preferedDirection = right ? -fabs(m_preferedDirection) : fabs(m_preferedDirection);
+    std::cout << "Changed direction to " << m_preferedDirection << std::endl;
 }
 
 // TODO: This is a rough estimate, improve by looking into the sensor specifications.
