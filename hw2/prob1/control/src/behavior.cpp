@@ -19,7 +19,7 @@
 #include <cmath>
 #include "behavior.hpp"
 
-Behavior::Behavior() noexcept:
+Behavior::Behavior(double dt, double gpsNoiseStdDev, double wheelNoiseStdDev, double radius) noexcept:
         m_frontUltrasonicReading{},
         m_rearUltrasonicReading{},
         m_leftIrReading{},
@@ -32,11 +32,15 @@ Behavior::Behavior() noexcept:
         m_rightIrReadingMutex{},
         m_leftWheelSpeedRequestMutex{},
         m_rightWheelSpeedRequestMutex{},
+        m_filterMutex{},
         m_preferedDirection{0.7f},
-        m_isFollowingWall{},
+        m_isFollowingWall{false},
         m_turnDampening{},
-        m_timeOfLastFlip{}
-{
+        m_timeOfLastFlip{},
+        m_filter{dt, gpsNoiseStdDev, wheelNoiseStdDev, radius},
+        m_generator{},
+        m_gpsDistribution{0, gpsNoiseStdDev},
+        m_wheelDistribution{0, wheelNoiseStdDev} {
 }
 
 opendlv::proxy::WheelSpeedRequest Behavior::getLeftWheelSpeed() noexcept {
@@ -69,12 +73,28 @@ void Behavior::setRightIr(opendlv::proxy::VoltageReading const &rightIrReading) 
     m_rightIrReading = rightIrReading;
 }
 
+void Behavior::gpsMeasurment(double x, double y) noexcept {
+    std::lock_guard<std::mutex> lock(m_filterMutex);
+    x+= m_gpsDistribution(m_generator);
+    y += m_gpsDistribution(m_generator);
+    m_filter.setGPS(x, y);
+}
+
+void Behavior::wheelSpeedMeasurment(double vL, double vR) noexcept {
+    std::lock_guard<std::mutex> lock(m_filterMutex);
+    vL += m_wheelDistribution(m_generator);
+    vR += m_wheelDistribution(m_generator);
+    m_filter.setWheelSpeed(vL, vR);
+}
+
 
 void Behavior::step() noexcept {
+    m_filter.update();
+
     float frontDistance;
     float rearDistance;
-    double leftDistance;
-    double rightDistance;
+    float leftDistance;
+    float rightDistance;
     {
         std::lock_guard<std::mutex> lock1(m_frontUltrasonicReadingMutex);
         std::lock_guard<std::mutex> lock2(m_rearUltrasonicReadingMutex);
@@ -87,7 +107,7 @@ void Behavior::step() noexcept {
         rightDistance = convertIrVoltageToDistance(m_rightIrReading.voltage());
     }
 
-    double avoidanceSpeedFactor{0.0f};
+    float avoidanceSpeedFactor{0.0f};
     // Change speed based on proximity in front/back
     if (frontDistance < 1.f) {
         avoidanceSpeedFactor -= 0.6f * (1.f - frontDistance);
@@ -96,9 +116,9 @@ void Behavior::step() noexcept {
         avoidanceSpeedFactor += 0.6f * (0.5f - rearDistance) / 0.5f;
     }
     // add the default speed
-    double speed = avoidanceSpeedFactor + 0.4f;
+    float speed = avoidanceSpeedFactor + 0.4f;
 
-    double avoidanceTurningFactor{0.f};
+    float avoidanceTurningFactor{0.f};
 
     // Avoid obstacles in front and back
     if (frontDistance < 0.9f || rearDistance < 0.5f) {
@@ -111,14 +131,14 @@ void Behavior::step() noexcept {
 
     bool oldIsFollowingWall = m_isFollowingWall;
     // Avoid obstacles on the sides
-    double sideDetectionThreshold{0.32};
-    double sideAvoidanceThreshold{0.25};
+    float sideDetectionThreshold{0.32f};
+    float sideAvoidanceThreshold{0.25f};
     m_isFollowingWall = false;
     if (leftDistance < sideDetectionThreshold) {
 //        std::cout << "Close on the left: " << leftDistance << std::endl;
         m_isFollowingWall = true;
         if (leftDistance < sideAvoidanceThreshold) {
-            avoidanceTurningFactor -= 0.3 * (1 - leftDistance / sideAvoidanceThreshold);
+            avoidanceTurningFactor -= 0.3f * (1 - leftDistance / sideAvoidanceThreshold);
         }
     }
     if (rightDistance < sideDetectionThreshold) {
@@ -138,16 +158,16 @@ void Behavior::step() noexcept {
         }
     }
     float turningAngle;
-    if (avoidanceTurningFactor == 0.0f) {
-        if (random() % 50 == 0){
+    if (fabs(avoidanceTurningFactor) < 0.001f) {
+        if (random() % 50 == 0) {
             m_turnDampening *= 0.5f;
         }
         turningAngle = m_preferedDirection * m_turnDampening;
-    } else{
+    } else {
         m_turnDampening = 1;
         turningAngle = avoidanceTurningFactor;
     }
-    dloat r{0.12f};
+    float r{0.12f};
     float leftWheelSpeed = speed - turningAngle * r;
     float rightWheelSpeed = speed + turningAngle * r;
 
@@ -176,16 +196,16 @@ void Behavior::FlipDirection() {
 }
 
 void Behavior::ChangeDirection(bool right) {
-    m_preferedDirection = right ? -fabs(m_preferedDirection) : fabs(m_preferedDirection);
+    m_preferedDirection = right ? -fabsf(m_preferedDirection) : fabsf(m_preferedDirection);
     std::cout << "Changed direction to " << m_preferedDirection << std::endl;
 }
 
 // TODO: This is a rough estimate, improve by looking into the sensor specifications.
-double Behavior::convertIrVoltageToDistance(float voltage) const noexcept {
-    double voltageDividerR1 = 1000.0;
-    double voltageDividerR2 = 1000.0;
+float Behavior::convertIrVoltageToDistance(float voltage) const noexcept {
+    float voltageDividerR1 = 1000.0f;
+    float voltageDividerR2 = 1000.0f;
 
-    double sensorVoltage = (voltageDividerR1 + voltageDividerR2) / voltageDividerR2 * voltage;
-    double distance = (3.4 - sensorVoltage) / 9.9;
+    float sensorVoltage = (voltageDividerR1 + voltageDividerR2) / voltageDividerR2 * voltage;
+    float distance = (3.4f - sensorVoltage) / 9.9f;
     return distance;
 }
